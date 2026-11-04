@@ -31,12 +31,14 @@ import type { PendingNewTask } from "../../state/use-pending-new-tasks";
 import { makeRawThreadShell, makeThreadShellFixture } from "../../test-fixtures";
 import { threadJumpTarget } from "../keyboard/threadKeyboardShortcuts";
 import {
+  arrangeThreadListV2SwipeActions,
   buildThreadListV2Items,
   buildThreadListV2ListItems,
   getThreadListV2OrderedSection,
   resolveThreadListV2SnoozeMenuSelection,
   resolveThreadListV2SnoozePresets,
   resolveThreadListV2Status,
+  resolveThreadListV2SwipeActions,
   resolveThreadListV2WokeAt,
   sortThreadsForListV2,
   threadListV2ListItemsAreEqual,
@@ -96,6 +98,95 @@ describe("resolveThreadListV2SnoozePresets", () => {
     );
     // The evening preset is gone by 19:15; a reading from 10:00 would still offer it.
     expect(presets.map((preset) => preset.id)).not.toContain("at:today:18:00");
+  });
+});
+
+describe("arrangeThreadListV2SwipeActions", () => {
+  const snoozableCard = resolveThreadListV2SwipeActions({
+    variant: "card",
+    settlementSupported: true,
+    snoozeSupported: true,
+    snoozable: true,
+  });
+  const cases = [
+    {
+      name: "keeps both actions trailing",
+      layout: "trailing",
+      actions: snoozableCard,
+      expected: { trailing: "settle", trailingSecondary: "snooze", leading: null },
+    },
+    {
+      name: "moves Snooze to the leading edge",
+      layout: "settle-trailing",
+      actions: snoozableCard,
+      expected: { trailing: "settle", trailingSecondary: null, leading: "snooze" },
+    },
+    {
+      name: "mirrors Settle to the leading edge",
+      layout: "snooze-trailing",
+      actions: snoozableCard,
+      expected: { trailing: "snooze", trailingSecondary: null, leading: "settle" },
+    },
+    {
+      name: "disables the leading edge while snooze is gated",
+      layout: "snooze-trailing",
+      actions: resolveThreadListV2SwipeActions({
+        variant: "card",
+        settlementSupported: true,
+        snoozeSupported: true,
+        snoozable: false,
+      }),
+      expected: { trailing: "settle", trailingSecondary: null, leading: null },
+    },
+    {
+      name: "disables the leading edge without server snooze support",
+      layout: "settle-trailing",
+      actions: resolveThreadListV2SwipeActions({
+        variant: "card",
+        settlementSupported: true,
+        snoozeSupported: false,
+        snoozable: true,
+      }),
+      expected: { trailing: "settle", trailingSecondary: null, leading: null },
+    },
+    {
+      name: "keeps Wake alone on a snoozed row",
+      layout: "settle-trailing",
+      actions: resolveThreadListV2SwipeActions({
+        variant: "card",
+        settlementSupported: true,
+        snoozeSupported: true,
+        snoozable: true,
+        snoozed: true,
+      }),
+      expected: { trailing: "unsnooze", trailingSecondary: null, leading: null },
+    },
+    {
+      name: "keeps Un-settle and Snooze trailing on a settled row",
+      layout: "snooze-trailing",
+      actions: resolveThreadListV2SwipeActions({
+        variant: "slim",
+        settlementSupported: true,
+        snoozeSupported: true,
+        snoozable: true,
+      }),
+      expected: { trailing: "unsettle", trailingSecondary: "snooze", leading: null },
+    },
+    {
+      name: "keeps Archive and Snooze trailing for legacy servers",
+      layout: "settle-trailing",
+      actions: resolveThreadListV2SwipeActions({
+        variant: "card",
+        settlementSupported: false,
+        snoozeSupported: true,
+        snoozable: true,
+      }),
+      expected: { trailing: "archive", trailingSecondary: "snooze", leading: null },
+    },
+  ] as const;
+
+  it.each(cases)("$name", ({ layout, actions, expected }) => {
+    expect(arrangeThreadListV2SwipeActions(actions, layout)).toEqual(expected);
   });
 });
 

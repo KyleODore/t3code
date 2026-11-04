@@ -15,6 +15,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DEFAULT_SERVER_SETTINGS } from "@t3tools/contracts";
 import { supportsSharedSettingsSync } from "@t3tools/client-runtime/state/shared-settings";
 import { AppText as Text } from "../../components/ui/AppText";
+import { ListChoiceRow } from "../../components/ui/ListChoiceRow";
+import { DEFAULT_THREAD_SWIPE_LAYOUT, type ThreadSwipeLayout } from "../../lib/threadSwipeLayout";
 import { useEnvironments } from "../../state/environments";
 import { mobilePreferencesAtom, updateMobilePreferencesAtom } from "../../state/preferences";
 import { serverEnvironment } from "../../state/server";
@@ -201,6 +203,58 @@ export function WorkingSectionSettings() {
         Fold working and monitoring threads into a Working section. They return to the top of the
         list when they need you. While this is on, active threads are ordered by time and cannot be
         moved.
+      </Text>
+    </View>
+  );
+}
+
+const THREAD_SWIPE_OPTIONS: ReadonlyArray<{
+  readonly layout: ThreadSwipeLayout;
+  readonly label: string;
+  readonly description: string;
+}> = [
+  {
+    layout: "settle-trailing",
+    label: "Swipe left to settle",
+    description: "Swipe right to snooze.",
+  },
+  {
+    layout: "snooze-trailing",
+    label: "Swipe left to snooze",
+    description: "Swipe right to settle.",
+  },
+  {
+    layout: "trailing",
+    label: "Both on left swipe",
+    description: "Swipe left to show Settle and Snooze together.",
+  },
+];
+
+export function ThreadSwipeSettings() {
+  const savePreferences = useAtomSet(updateMobilePreferencesAtom);
+  const preferences = useAtomValue(mobilePreferencesAtom);
+  const ready = AsyncResult.isSuccess(preferences) && !preferences.waiting;
+  const selected = AsyncResult.isSuccess(preferences)
+    ? (preferences.value.threadSwipeLayout ?? DEFAULT_THREAD_SWIPE_LAYOUT)
+    : null;
+
+  return (
+    <View className="gap-3">
+      <SettingsSection title="Swipe actions">
+        {THREAD_SWIPE_OPTIONS.map((option, index) => (
+          <ListChoiceRow
+            key={option.layout}
+            label={option.label}
+            description={option.description}
+            selected={selected === option.layout}
+            separated={index > 0}
+            disabled={!ready}
+            onPress={() => savePreferences({ threadSwipeLayout: option.layout })}
+          />
+        ))}
+      </SettingsSection>
+      <Text className="px-2 text-sm text-foreground-muted">
+        A full swipe commits the action; a full swipe to snooze uses your first snooze option.
       </Text>
     </View>
   );
