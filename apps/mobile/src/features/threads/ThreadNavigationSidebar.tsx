@@ -276,6 +276,7 @@ function ThreadNavigationSidebarPane(
     snoozedShelfExpanded,
     workingShelfEnabled,
     workingShelfExpanded,
+    swipeLayout,
     toggleSettledShelf,
     toggleSnoozedShelf,
     toggleWorkingShelf,
@@ -470,6 +471,7 @@ function ThreadNavigationSidebarPane(
     listEnvironments,
     threadSearchMatchByKey,
     workingShelfEnabled,
+    swipeLayout,
   };
   useThreadJumpShortcuts(listItems, handleSelectThread);
   const sidebarItemsAreEqual = (previous: SidebarListItem, item: SidebarListItem): boolean => {
@@ -591,6 +593,7 @@ function ThreadNavigationSidebarPane(
             onSettleThread={settleThread}
             snoozeSupported={snoozeEnvironmentIds.has(thread.environmentId)}
             snoozePresets={snoozePresetsByEnvironmentId.get(thread.environmentId)}
+            swipeLayout={swipeLayout}
             pinningSupported={pinningEnvironmentIds.has(thread.environmentId)}
             autoSettleOptOutSupported={autoSettleOptOutEnvironmentIds.has(thread.environmentId)}
             reorderSupported={

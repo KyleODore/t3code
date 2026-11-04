@@ -42,6 +42,7 @@ import { EnvironmentMachineSymbol } from "../../components/EnvironmentMachineSym
 import { ProjectFavicon } from "../../components/ProjectFavicon";
 import { ProviderIcon, ProviderInstanceIcon } from "../../components/ProviderIcon";
 import { useNowAfter } from "../../lib/clock";
+import type { ThreadSwipeLayout } from "../../lib/threadSwipeLayout";
 import { cn } from "../../lib/cn";
 import { copyTextWithHaptic } from "../../lib/copyTextWithHaptic";
 import { copyThreadReference } from "../../lib/copyThreadReference";
@@ -66,6 +67,7 @@ import { canTurnThreadIntoProject, turnThreadIntoProject } from "./turnThreadInt
 import { threadCanArchive } from "../home/threadArchive";
 import {
   THREAD_LIST_V2_SETTLED_PAGE_COUNT,
+  arrangeThreadListV2SwipeActions,
   resolveThreadListV2SnoozeGateExpiryMs,
   resolveThreadListV2SnoozeMenuSelection,
   resolveThreadListV2SnoozePresets,
@@ -659,6 +661,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
   readonly settlementSupported: boolean;
   readonly snoozeSupported: boolean;
   readonly snoozePresets: ReadonlyArray<SnoozePresetSetting> | undefined;
+  readonly swipeLayout: ThreadSwipeLayout;
   readonly pinningSupported: boolean;
   readonly autoSettleOptOutSupported: boolean;
   readonly titleRegenerationSupported: boolean;
@@ -814,6 +817,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
     snoozable: canSnooze(thread, { now: snoozeGateNow }),
     snoozed: snoozedRow,
   });
+  const swipeEdges = arrangeThreadListV2SwipeActions(swipeActions, props.swipeLayout);
   const snoozePresets = resolveThreadListV2SnoozePresets({
     secondary: swipeActions.secondary,
     now: props.snoozePresetMinute || snoozeGateNow,
@@ -1041,66 +1045,75 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
       props.snoozePresets,
     ],
   );
-  const primaryAction = useMemo(() => {
-    if (swipeActions.primary === "archive") {
-      return {
+  const lifecycleSwipeActions = useMemo(
+    () => ({
+      archive: {
         accessibilityLabel: `Archive ${thread.title}`,
         icon: "archivebox" as const,
         label: "Archive",
         onPress: handleArchive,
-      };
-    }
-    if (swipeActions.primary === "unsnooze") {
-      return {
+      },
+      unsnooze: {
         accessibilityLabel: `Wake ${thread.title} now`,
         icon: "clock" as const,
         label: "Wake",
         onPress: handleUnsnooze,
-      };
-    }
-    return swipeActions.primary === "unsettle"
-      ? {
-          accessibilityLabel: `Un-settle ${thread.title}`,
-          icon: "arrow.uturn.backward" as const,
-          label: "Un-settle",
-          onPress: handleUnsettle,
-        }
-      : {
-          accessibilityLabel: `Settle ${thread.title}`,
-          icon: "checkmark" as const,
-          label: "Settle",
-          onPress: handleSettle,
-        };
-  }, [
-    handleArchive,
-    handleSettle,
-    handleUnsettle,
-    handleUnsnooze,
-    swipeActions.primary,
-    thread.title,
-  ]);
-  const secondaryAction = useMemo(
-    () =>
-      swipeActions.secondary === "snooze"
-        ? {
-            accessibilityLabel: `Choose when to snooze ${thread.title}`,
-            icon: "clock" as const,
-            label: "Snooze",
-            menu: {
-              actions: snoozePresetActions,
-              onPressAction: handleMenuAction,
-              title: "Snooze until",
-            },
-            onPress: () => undefined,
-          }
-        : null,
-    [handleMenuAction, snoozePresetActions, swipeActions.secondary, thread.title],
+      },
+      unsettle: {
+        accessibilityLabel: `Un-settle ${thread.title}`,
+        icon: "arrow.uturn.backward" as const,
+        label: "Un-settle",
+        onPress: handleUnsettle,
+      },
+      settle: {
+        accessibilityLabel: `Settle ${thread.title}`,
+        icon: "checkmark" as const,
+        label: "Settle",
+        onPress: handleSettle,
+      },
+    }),
+    [handleArchive, handleSettle, handleUnsettle, handleUnsnooze, thread.title],
   );
+  const firstSnoozePresetId = snoozePresets[0]?.id;
+  const snoozeSwipeAction = useMemo(
+    () => ({
+      accessibilityLabel: `Choose when to snooze ${thread.title}`,
+      icon: "clock" as const,
+      label: "Snooze",
+      tone: "secondary" as const,
+      menu: {
+        actions: snoozePresetActions,
+        onPressAction: handleMenuAction,
+        title: "Snooze until",
+      },
+      // A full swipe snoozes until the first preset the menu shows; the undo notice reverses it.
+      onPress: () => {
+        if (firstSnoozePresetId === undefined) setCustomSnoozeOpen(true);
+        else handleMenuAction({ nativeEvent: { event: `snooze:${firstSnoozePresetId}` } });
+      },
+    }),
+    [firstSnoozePresetId, handleMenuAction, setCustomSnoozeOpen, snoozePresetActions, thread.title],
+  );
+  const primaryAction =
+    swipeEdges.trailing === "snooze"
+      ? snoozeSwipeAction
+      : lifecycleSwipeActions[swipeEdges.trailing];
+  const secondaryAction = swipeEdges.trailingSecondary === "snooze" ? snoozeSwipeAction : null;
+  const leadingAction =
+    swipeEdges.leading === null
+      ? undefined
+      : swipeEdges.leading === "snooze"
+        ? snoozeSwipeAction
+        : lifecycleSwipeActions.settle;
+  const trailingHint =
+    secondaryAction === null
+      ? `Swipe left to ${primaryAction.label.toLowerCase()}.`
+      : `Swipe left for ${primaryAction.label.toLowerCase()} and snooze actions.`;
   const swipeAccessibilityHint = !canOperateThread
     ? "Opens the thread"
-    : secondaryAction === null
-      ? `Opens the thread. Swipe left to ${primaryAction.label.toLowerCase()}.`
-      : `Opens the thread. Swipe left for ${primaryAction.label.toLowerCase()} and snooze actions.`;
+    : leadingAction === undefined
+      ? `Opens the thread. ${trailingHint}`
+      : `Opens the thread. ${trailingHint} Swipe right to ${leadingAction.label.toLowerCase()}.`;
 
   const titleTextInset = props.project ? projectIconSize + 8 : 0;
   const cardContent = (
@@ -1480,6 +1493,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
         onSwipeableWillOpen={props.onSwipeableWillOpen}
         primaryAction={primaryAction}
         secondaryAction={secondaryAction}
+        leadingAction={leadingAction}
         resetKey={`${thread.environmentId}:${thread.id}:${variant}:${snoozedRow}:${thread.settledAt}:${thread.unsettledAt}:${thread.snoozedUntil}:${thread.pinnedAt}`}
         simultaneousWith={props.simultaneousSwipeGesture}
         threadTitle={thread.title}

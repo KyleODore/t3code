@@ -34,6 +34,7 @@ import type { SnoozePresetSetting } from "@t3tools/contracts/settings";
 import type { ThreadListProvider } from "../../state/thread-list-environments";
 import type { ThreadMoveAvailability } from "./threadOrder";
 
+import type { ThreadSwipeLayout } from "../../lib/threadSwipeLayout";
 import { relativeTime } from "../../lib/time";
 import type { PendingNewTask } from "../../state/use-pending-new-tasks";
 
@@ -132,6 +133,23 @@ export function resolveThreadListV2SwipeActions(input: {
     primary,
     secondary: input.snoozeSupported && input.snoozable ? "snooze" : null,
   };
+}
+
+/** Places a row's available actions on its swipe edges; only Settle with Snooze can split. */
+export function arrangeThreadListV2SwipeActions(
+  actions: ReturnType<typeof resolveThreadListV2SwipeActions>,
+  layout: ThreadSwipeLayout,
+): {
+  readonly trailing: ThreadListV2SwipeAction;
+  readonly trailingSecondary: "snooze" | null;
+  readonly leading: "settle" | "snooze" | null;
+} {
+  if (layout === "trailing" || actions.primary !== "settle" || actions.secondary === null) {
+    return { trailing: actions.primary, trailingSecondary: actions.secondary, leading: null };
+  }
+  return layout === "settle-trailing"
+    ? { trailing: "settle", trailingSecondary: null, leading: "snooze" }
+    : { trailing: "snooze", trailingSecondary: null, leading: "settle" };
 }
 
 export function resolveThreadListV2SnoozeGateExpiryMs(
