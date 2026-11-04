@@ -7,6 +7,8 @@ import { useDeviceType } from "../../native/native-layout-metrics";
 import { useNativeWorkspaceColumnsSupported } from "../../native/NativeWorkspaceColumns";
 import { useAdaptiveWorkspaceLayout } from "../layout/AdaptiveWorkspaceLayout";
 import { withNativeGlassHeaderItem } from "../layout/native-glass-header-items";
+import type { AppBarMenuItem } from "../../components/ui/AppBar.types";
+import { createNativeHeaderMenuItem } from "../../components/ui/nativeHeaderMenu.ios";
 import {
   ThreadGitControls,
   useThreadGitCenterHeaderItems,
@@ -23,6 +25,7 @@ export function useThreadHeaderOptions(props: {
   readonly gitControls: Parameters<typeof ThreadGitControls>[0];
   readonly onReturnToThread?: () => void;
   readonly draft?: boolean;
+  readonly moreMenuItems?: ReadonlyArray<AppBarMenuItem>;
 }) {
   const usesNativeWorkspaceColumns = useNativeWorkspaceColumnsSupported();
   const deviceType = useDeviceType();
@@ -32,6 +35,14 @@ export function useThreadHeaderOptions(props: {
   const sidebarHeaderItem = useWorkspaceSidebarHeaderItem();
   const threadCenterHeaderItems = useThreadGitCenterHeaderItems(props.gitControls);
   const compactRightHeaderItems = useThreadGitRightHeaderItems(props.gitControls);
+  const moreHeaderItems: NativeHeaderItems = props.moreMenuItems?.length
+    ? [
+        createNativeHeaderMenuItem(
+          { title: "More actions", icon: "ellipsis", items: props.moreMenuItems },
+          "thread-right-more",
+        ),
+      ]
+    : [];
   const splitLeftHeaderItems: NativeHeaderItems = [
     ...(!usesDuoHeader
       ? [
@@ -88,8 +99,13 @@ export function useThreadHeaderOptions(props: {
         ? undefined
         : () => compactHomeHeaderItems,
     // The workspace navigator adds compose to the Duo detail column's bar.
-    unstable_headerRightItems: () =>
-      usesDuoHeader || layout.usesSplitView ? threadCenterHeaderItems : compactRightHeaderItems,
+    // Trailing items fill from the edge, so the overflow menu leads to sit outermost.
+    unstable_headerRightItems: () => [
+      ...moreHeaderItems,
+      ...(usesDuoHeader || layout.usesSplitView
+        ? threadCenterHeaderItems
+        : compactRightHeaderItems),
+    ],
     unstable_headerToolbarItems: () => [],
     unstable_headerSubtitle: props.usesNativeHeaderGlass ? props.subtitle : undefined,
     contentStyle: undefined,
@@ -102,6 +118,7 @@ export function useThreadHeaderOptions(props: {
       splitLeftHeaderItems,
       threadCenterHeaderItems,
       compactRightHeaderItems,
+      moreHeaderItems,
       usesDuoHeader,
       environmentId,
       threadId,

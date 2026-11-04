@@ -31,6 +31,7 @@ import {
 import { isListedThreadLineage, type EnvironmentId, type ProjectId } from "@t3tools/contracts";
 import type { SnoozePresetSetting } from "@t3tools/contracts/settings";
 
+import type { AppBarMenuItem } from "../../components/ui/AppBar.types";
 import type { ThreadListProvider } from "../../state/thread-list-environments";
 import type { ThreadMoveAvailability } from "./threadOrder";
 
@@ -108,6 +109,39 @@ export function resolveThreadListV2SnoozeMenuSelection(input: {
     ...presetOptions(input.presets),
   });
   return preset ? { _tag: "selected", preset } : { _tag: "expired" };
+}
+
+/** The thread screen's snooze entry: Wake now while snoozed, else the preset submenu. */
+export function resolveThreadSnoozeMenuItem(input: {
+  readonly supported: boolean;
+  readonly canOperate: boolean;
+  readonly snoozed: boolean;
+  readonly snoozable: boolean;
+  readonly now: string;
+  readonly presets: ReadonlyArray<SnoozePresetSetting> | undefined;
+  readonly onSnooze: (preset: SnoozePreset) => void;
+  readonly onCustom: () => void;
+  readonly onWake: () => void;
+}): AppBarMenuItem | null {
+  if (!input.supported || !input.canOperate) return null;
+  if (input.snoozed) {
+    return { id: "unsnooze", title: "Wake now", icon: "clock", onPress: input.onWake };
+  }
+  if (!input.snoozable) return null;
+  return {
+    id: "snooze",
+    title: "Snooze",
+    icon: "clock",
+    items: [
+      ...resolveSnoozePresets(new Date(input.now), presetOptions(input.presets)).map((preset) => ({
+        id: `snooze:${preset.id}`,
+        title: preset.label,
+        subtitle: preset.whenLabel,
+        onPress: () => input.onSnooze(preset),
+      })),
+      { id: "snooze:custom", title: "Custom…", onPress: input.onCustom },
+    ],
+  };
 }
 
 export function resolveThreadListV2SwipeActions(input: {

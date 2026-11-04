@@ -8,7 +8,12 @@ import type { AppSymbolName } from "./AppSymbol";
 import { NativeAppBar } from "./NativeAppBar.android";
 import { IconButton } from "./IconButton";
 import { AndroidAnchoredMenu } from "./AndroidAnchoredMenu";
-import { splitAndroidHeaderActions } from "./headerMenu.android";
+import {
+  androidHeaderMenuActions,
+  selectHeaderMenuItem,
+  splitAndroidHeaderActions,
+} from "./headerMenu.android";
+import type { AppBarMenuItem } from "./AppBar.types";
 import { useScaledTextRole } from "../../features/settings/appearance/useScaledTextRole";
 import { useToolbarLayout } from "./useToolbarLayout";
 import { useControlTheme } from "./useControlTheme";
@@ -24,6 +29,7 @@ export interface AndroidHeaderAction {
   readonly subtitle?: string;
   readonly destructive?: boolean;
   readonly overflowOnly?: boolean;
+  readonly menuItems?: ReadonlyArray<AppBarMenuItem>;
 }
 
 export function AndroidHeaderIconButton(props: {
@@ -185,10 +191,17 @@ export function AndroidScreenHeader(props: {
                       disabled: Boolean(action.disabled),
                       destructive: action.destructive,
                     },
+                    subactions: action.menuItems && androidHeaderMenuActions(action.menuItems),
                   }))}
-                  onPressAction={({ nativeEvent }) =>
-                    overflowActions[Number(nativeEvent.event)]?.onPress()
-                  }
+                  onPressAction={({ nativeEvent }) => {
+                    const action = overflowActions[Number(nativeEvent.event)];
+                    if (action) action.onPress();
+                    else
+                      selectHeaderMenuItem(
+                        overflowActions.flatMap((overflow) => overflow.menuItems ?? []),
+                        nativeEvent.event,
+                      );
+                  }}
                 >
                   {(open) => (
                     <IconButton

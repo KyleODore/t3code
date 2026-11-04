@@ -10,14 +10,9 @@ import { AndroidHeaderIconButton, AndroidScreenHeader } from "./AndroidScreenHea
 import { ScreenHeaderButton } from "./ScreenHeaderButton.android";
 import { Menu } from "./Menu";
 import { SearchField } from "./SearchField";
-import { androidHeaderMenuActions, findHeaderMenuAction } from "./headerMenu.android";
-import type { AppBarMenuItem, AppBarProps, AppBarSearch } from "./AppBar.types";
+import { androidHeaderMenuActions, selectHeaderMenuItem } from "./headerMenu.android";
+import type { AppBarProps, AppBarSearch } from "./AppBar.types";
 import { useHasWorkspaceAppBar, WorkspaceAppBar } from "./WorkspaceAppBar.android";
-
-function selectMenuItem(items: ReadonlyArray<AppBarMenuItem>, id: string) {
-  const action = findHeaderMenuAction(items, id);
-  if (action && !action.disabled) action.onPress();
-}
 
 interface SearchState {
   readonly searching: boolean;
@@ -124,7 +119,7 @@ function AppBarView(props: AppBarProps & { readonly searchState?: SearchState })
                 accessibilityLabel: menu.title,
                 customized: icon?.endsWith(".fill") === true,
                 actions: androidHeaderMenuActions(menu.items),
-                onSelect: (id) => selectMenuItem(menu.items, id),
+                onSelect: (id) => selectHeaderMenuItem(menu.items, id),
               }
             : undefined
         }
@@ -138,7 +133,7 @@ function AppBarView(props: AppBarProps & { readonly searchState?: SearchState })
       actions={androidHeaderMenuActions(menu.items)}
       isAnchoredToRight
       title={menu.status ?? menu.title}
-      onPressAction={({ nativeEvent }) => selectMenuItem(menu.items, nativeEvent.event)}
+      onPressAction={({ nativeEvent }) => selectHeaderMenuItem(menu.items, nativeEvent.event)}
     >
       <ScreenHeaderButton accessibilityLabel={menu.title} icon={menu.icon} />
     </Menu>
