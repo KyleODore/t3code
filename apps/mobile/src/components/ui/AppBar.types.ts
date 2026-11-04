@@ -16,6 +16,8 @@ export interface AppBarAction {
   readonly destructive?: boolean;
   /** Android: always in the overflow menu, never a toolbar button. */
   readonly overflowOnly?: boolean;
+  /** Android overflow menu: opens these as a submenu instead of calling `onPress`. */
+  readonly menuItems?: ReadonlyArray<AppBarMenuItem>;
 }
 
 export type AppBarMenuItem =

@@ -37,6 +37,7 @@ import {
   resolveThreadListV2SnoozeMenuSelection,
   resolveThreadListV2SnoozePresets,
   resolveThreadListV2Status,
+  resolveThreadSnoozeMenuItem,
   resolveThreadListV2WokeAt,
   sortThreadsForListV2,
   threadListV2ListItemsAreEqual,
@@ -96,6 +97,46 @@ describe("resolveThreadListV2SnoozePresets", () => {
     );
     // The evening preset is gone by 19:15; a reading from 10:00 would still offer it.
     expect(presets.map((preset) => preset.id)).not.toContain("at:today:18:00");
+  });
+});
+
+describe("resolveThreadSnoozeMenuItem", () => {
+  const base = {
+    supported: true,
+    canOperate: true,
+    snoozed: false,
+    snoozable: true,
+    now: new Date(2026, 4, 8, 10).toISOString(),
+    presets: [{ kind: "after", minutes: 60 }] as const,
+    onSnooze: () => {},
+    onCustom: () => {},
+    onWake: () => {},
+  };
+
+  it.each([
+    ["the environment cannot snooze", { supported: false }],
+    ["the connection cannot operate threads", { canOperate: false }],
+    ["the thread cannot be snoozed now", { snoozable: false }],
+    ["the connection cannot wake a snoozed thread", { snoozed: true, canOperate: false }],
+  ])("is hidden when %s", (_, overrides) => {
+    expect(resolveThreadSnoozeMenuItem({ ...base, ...overrides })).toBeNull();
+  });
+
+  it("offers Wake now in place of the presets while snoozed", () => {
+    expect(resolveThreadSnoozeMenuItem({ ...base, snoozed: true, snoozable: false })).toMatchObject(
+      {
+        id: "unsnooze",
+        title: "Wake now",
+      },
+    );
+  });
+
+  it("lists the environment's presets with their wake times, then Custom", () => {
+    const item = resolveThreadSnoozeMenuItem(base);
+    expect(item !== null && "items" in item ? item.items : null).toMatchObject([
+      { id: "snooze:after:60", title: "In 1 hour", subtitle: expect.any(String) },
+      { id: "snooze:custom", title: "Custom…" },
+    ]);
   });
 });
 

@@ -2,14 +2,19 @@ import { useMemo } from "react";
 import { AppBar } from "../../components/ui/AppBar";
 import { ScreenHeaderButton } from "../../components/ui/ScreenHeaderButton";
 import type { AppBarAction } from "../../components/ui/AppBar.types";
+import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
 import { useAdaptiveWorkspaceLayout } from "../layout/AdaptiveWorkspaceLayout";
 import type { ThreadInspectorMode } from "./thread-inspector-navigation";
 import { useThreadHeaderOptions } from "./useThreadHeaderOptions";
 import { useWorkspaceBackNavigation } from "../workspace/useAndroidWorkspaceNavigation";
 import { PullRequestGlyph } from "../pull-requests/pullRequestGlyphs";
+import { useThreadSnoozeMenu } from "./useThreadSnoozeMenu";
 
 export function ThreadHeader(
-  props: Parameters<typeof useThreadHeaderOptions>[0] & {
+  props: Omit<Parameters<typeof useThreadHeaderOptions>[0], "moreMenuItems"> & {
+    /** Null for drafts and threads still being created. */
+    readonly thread: EnvironmentThreadShell | null;
+    readonly canOperateThread: boolean;
     readonly hasThreadCwd: boolean;
     readonly hasWorkspaceRoot: boolean;
     readonly fileInspectorSupported: boolean;
@@ -23,7 +28,12 @@ export function ThreadHeader(
   const { layout, panes, toggleAuxiliaryPane, composerKeyboardActive } =
     useAdaptiveWorkspaceLayout();
   const { onOpenTerminal, onMergeBack } = props.gitControls;
-  const native = useThreadHeaderOptions(props);
+  const snoozeMenu = useThreadSnoozeMenu(props.thread, props.canOperateThread);
+  const snoozeItem = snoozeMenu.item;
+  const native = useThreadHeaderOptions({
+    ...props,
+    moreMenuItems: snoozeItem ? [snoozeItem] : undefined,
+  });
   const androidHeaderActions = useMemo<ReadonlyArray<AppBarAction>>(() => {
     const actions: AppBarAction[] = [];
     if (props.onReturnToThread) {
@@ -61,8 +71,19 @@ export function ThreadHeader(
         onPress: onMergeBack,
       });
     }
+    if (snoozeItem) {
+      actions.push({
+        accessibilityLabel: snoozeItem.title ?? "Snooze",
+        icon: "clock",
+        overflowOnly: true,
+        ...("items" in snoozeItem
+          ? { menuItems: snoozeItem.items, onPress: () => {} }
+          : { onPress: snoozeItem.onPress }),
+      });
+    }
     return actions;
   }, [
+    snoozeItem,
     props.inspectorMode,
     panes.auxiliaryPaneVisible,
     props.onOpenFilesInspector,
@@ -103,6 +124,7 @@ export function ThreadHeader(
         compact={composerKeyboardActive}
       />
       {native.fallback}
+      {snoozeMenu.customSnoozeSheet}
     </>
   );
 }

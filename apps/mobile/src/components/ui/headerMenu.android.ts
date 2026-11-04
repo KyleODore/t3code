@@ -43,6 +43,11 @@ export function findHeaderMenuAction(
   return undefined;
 }
 
+export function selectHeaderMenuItem(items: ReadonlyArray<AppBarMenuItem>, id: string) {
+  const action = findHeaderMenuAction(items, id);
+  if (action && !action.disabled) action.onPress();
+}
+
 export function splitAndroidHeaderActions<Action extends { readonly overflowOnly?: boolean }>(
   actions: ReadonlyArray<Action>,
   wide: boolean,
